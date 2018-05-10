@@ -21,6 +21,10 @@ struct Sudoku{
     bool box[N][N+1];
 };
 
+struct Cell{
+    int r, c, n;
+};
+
 bool timing;
 int ans_count;
 
@@ -50,8 +54,8 @@ inline bool sudoku_can_fill(Sudoku &thiz, int r, int c, int n)
 
 inline void _sudoku_fill(Sudoku &thiz, int r, int c, int n, bool b)
 {
-    // assert(thiz.row[r][n] != b && thiz.col[c][n] != b && thiz.box[get_box(r, c)][n] != b);
-    // assert(n > 0 && n <= N);
+    assert(thiz.row[r][n] != b && thiz.col[c][n] != b && thiz.box[get_box(r, c)][n] != b);
+    assert(n > 0 && n <= N);
     thiz.row[r][n] = b;
     thiz.col[c][n] = b;
     thiz.box[get_box(r,c)][n] = b;
@@ -87,6 +91,7 @@ void sudoku_read(Sudoku &thiz)
 }
 
 void sudoku_solve(Sudoku &thiz){
+    vector<Cell> v;
     int n_filled, n_unsolved;
     do{
         n_filled = 0;
@@ -106,6 +111,8 @@ void sudoku_solve(Sudoku &thiz){
                 return;
             if (n_can_fill == 1){
                 sudoku_fill(thiz, r, c, t);
+                Cell cell = {.r=r, .c=c, .n=t};
+                v.push_back(cell);
                 n_filled++;
             }else
                 n_unsolved++;
@@ -119,17 +126,18 @@ void sudoku_solve(Sudoku &thiz){
         FOR_EACH_EMPTY_CELL(r, c, thiz){
             FOR_EACH_NUM(n){
                 if (sudoku_can_fill(thiz, r, c, n)){
-                    Sudoku s;
-                    memcpy(&s, &thiz, sizeof(Sudoku));
-
-                    sudoku_fill(s, r, c, n);
-                    sudoku_solve(s);
-                    sudoku_erase(s, r, c, n);
+                    sudoku_fill(thiz, r, c, n);
+                    sudoku_solve(thiz);
+                    sudoku_erase(thiz, r, c, n);
                 }
             }
+            for (Cell cell : v)
+                sudoku_erase(thiz, cell.r, cell.c, cell.n);
             return;
         }
     }
+    for (Cell cell : v)
+        sudoku_erase(thiz, cell.r, cell.c, cell.n);
 }
 
 void test(Sudoku s, int n_repeat){
@@ -148,7 +156,7 @@ void test(Sudoku s, int n_repeat){
         v.push_back(usec);
     }
     sort(v.begin(), v.end());
-    
+
     double total_time = 0;
     for (int i = 20; i < v.size() - 20; ++i){
         total_time += v[i];
