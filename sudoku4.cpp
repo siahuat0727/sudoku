@@ -108,7 +108,7 @@ void sudoku_solve(Sudoku &thiz){
                 }
             }
             if (n_can_fill == 0)
-                return;
+                goto end;
             if (n_can_fill == 1){
                 sudoku_fill(thiz, r, c, t);
                 Cell cell = {.r=r, .c=c, .n=t};
@@ -133,9 +133,10 @@ void sudoku_solve(Sudoku &thiz){
             }
             for (Cell cell : v)
                 sudoku_erase(thiz, cell.r, cell.c, cell.n);
-            return;
+            goto end;
         }
     }
+end:
     for (Cell cell : v)
         sudoku_erase(thiz, cell.r, cell.c, cell.n);
 }

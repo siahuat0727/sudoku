@@ -86,7 +86,7 @@ void sudoku_read(Sudoku &thiz)
     }
 }
 
-void sudoku_solve(Sudoku &thiz){
+void sudoku_solve(Sudoku thiz){
     int n_filled, n_unsolved;
     do{
         n_filled = 0;
@@ -119,12 +119,9 @@ void sudoku_solve(Sudoku &thiz){
         FOR_EACH_EMPTY_CELL(r, c, thiz){
             FOR_EACH_NUM(n){
                 if (sudoku_can_fill(thiz, r, c, n)){
-                    Sudoku s;
-                    memcpy(&s, &thiz, sizeof(Sudoku));
-
-                    sudoku_fill(s, r, c, n);
-                    sudoku_solve(s);
-                    sudoku_erase(s, r, c, n);
+                    sudoku_fill(thiz, r, c, n);
+                    sudoku_solve(thiz);
+                    sudoku_erase(thiz, r, c, n);
                 }
             }
             return;
