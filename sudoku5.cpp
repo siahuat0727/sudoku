@@ -5,14 +5,13 @@
 #include <cstring>
 #include <cstdlib>
 #include <vector>
-#include <stack>
 #include <algorithm>
 
 using namespace std;
 
 #define N 9
 #define FOR_N(i) for (int i = 0; i < N; ++i)
-#define FOR_EACH_EMPTY_CELL(r, c, s) FOR_N(r) FOR_N(c) if(s.grid[r][c] == 0)
+#define FOR_FOR_EACH_EMPTY_CELL(r, c, s) FOR_N(r) FOR_N(c) if(s.grid[r][c] == 0)
 #define FOR_EACH_NUM(n) for (int n = 1; n <= N; ++n)
 
 struct Sudoku {
@@ -22,14 +21,8 @@ struct Sudoku {
     bool box[N][N+1];
 };
 
-struct Cell {
-    int r, c, n;
-};
-
 bool timing;
 int ans_count;
-
-void sudoku_solve(Sudoku &thiz, bool record);
 
 void sudoku_print(Sudoku &thiz)
 {
@@ -55,8 +48,8 @@ bool sudoku_can_fill(Sudoku &thiz, int r, int c, int n)
 
 void _sudoku_fill(Sudoku &thiz, int r, int c, int n, bool b)
 {
-    assert(thiz.row[r][n] != b && thiz.col[c][n] != b && thiz.box[get_box(r, c)][n] != b);
-    assert(n > 0 && n <= N);
+    // assert(thiz.row[r][n] != b && thiz.col[c][n] != b && thiz.box[get_box(r, c)][n] != b);
+    // assert(n > 0 && n <= N);
     thiz.row[r][n] = b;
     thiz.col[c][n] = b;
     thiz.box[get_box(r,c)][n] = b;
@@ -91,13 +84,31 @@ void sudoku_read(Sudoku &thiz)
     }
 }
 
-void _sudoku_solve(Sudoku &thiz, stack<Cell> &s, bool record)
+void find_neighbour(Sudoku &thiz, int r, int c){
+    for (int i = 0; i < N; ++i){
+        FOR_EACH_NUM(n){
+            if (sudoku_can_fill(thiz, i, c, n))
+                sudoku_fill(thiz, i, c, n);
+            if (sudoku_can_fill(thiz, r, i, n))
+                sudoku_fill(thiz, r, i, n);
+        }
+    }
+    int r_start = r/3*3;
+    int c_start = c/3*3;
+    for (int i = r_start; i < r_start + 3; ++i)
+        for (int j = c_start; j < c_start + 3; ++j)
+            FOR_EACH_NUM(n)
+                if (sudoku_can_fill(thiz, i, j, n))
+                    sudoku_fill(thiz, i, j, n);
+}
+
+void sudoku_solve(Sudoku thiz)
 {
     int n_filled, n_unsolved;
     do {
         n_filled = 0;
         n_unsolved = 0;
-        FOR_EACH_EMPTY_CELL(r, c, thiz) {
+        FOR_FOR_EACH_EMPTY_CELL(r, c, thiz) {
             int n_can_fill = 0;
             int t;
             FOR_EACH_NUM(n) {
@@ -113,10 +124,6 @@ void _sudoku_solve(Sudoku &thiz, stack<Cell> &s, bool record)
             if (n_can_fill == 1) {
                 sudoku_fill(thiz, r, c, t);
                 n_filled++;
-                if (record){
-                    Cell cell = {.r=r, .c=c, .n=t};
-                    s.push(cell);
-                }
             } else
                 n_unsolved++;
         }
@@ -126,27 +133,15 @@ void _sudoku_solve(Sudoku &thiz, stack<Cell> &s, bool record)
         sudoku_print(thiz);
     } else {
         // find the first empty cell, try to fill and solve it
-        FOR_EACH_EMPTY_CELL(r, c, thiz) {
+        FOR_FOR_EACH_EMPTY_CELL(r, c, thiz) {
             FOR_EACH_NUM(n) {
                 if (sudoku_can_fill(thiz, r, c, n)) {
                     sudoku_fill(thiz, r, c, n);
-                    sudoku_solve(thiz, true);
+                    sudoku_solve(thiz);
                     sudoku_erase(thiz, r, c, n);
                 }
             }
             return;
-        }
-    }
-}
-
-void sudoku_solve(Sudoku &thiz, bool record=false){
-    stack<Cell> s;
-    _sudoku_solve(thiz, s, record);
-    if(record){
-        while(!s.empty()){
-            Cell cell = s.top();
-            sudoku_erase(thiz, cell.r, cell.c, cell.n);
-            s.pop();
         }
     }
 }

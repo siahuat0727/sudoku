@@ -1,12 +1,9 @@
-#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <cstring>
-#include <cstdlib>
-#include <vector>
-#include <algorithm>
-
-using namespace std;
 
 #define N 9
 
@@ -25,23 +22,23 @@ void print_sudoku()
         return;
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j)
-            cout << sudoku[i][j] << ' ';
-        cout << endl;
+            printf("%s%d", j==0 ? "" : " ", sudoku[i][j]);
+        puts("");
     }
-    cout << endl;
+    puts("");
 }
 
-inline int get_box(int r, int c)
+int get_box(int r, int c)
 {
     return r/3*3 + c/3;
 }
 
-inline bool can_fill(int r, int c, int n)
+bool can_fill(int r, int c, int n)
 {
     return !row[r][n] && !col[c][n] && !box[get_box(r,c)][n];
 }
 
-inline void _fill(int r, int c, int n, bool b)
+void _fill(int r, int c, int n, bool b)
 {
     row[r][n] = b;
     col[c][n] = b;
@@ -49,17 +46,17 @@ inline void _fill(int r, int c, int n, bool b)
     sudoku[r][c] = b ? n : 0;
 }
 
-inline void fill(int r, int c, int n)
+void fill(int r, int c, int n)
 {
     _fill(r, c, n, true);
 }
 
-inline void erase(int r, int c, int n)
+void erase(int r, int c, int n)
 {
     _fill(r, c, n, false);
 }
 
-inline void next_bt(int r, int c)
+void next_bt(int r, int c)
 {
     c == N-1 ? bt(r+1, 0) : bt(r, c+1);
 }
@@ -89,8 +86,8 @@ void read_sudoku()
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j) {
             int t;
-            cin >> t;
-            if(t == 0)
+            scanf("%d", &t);
+            if (t == 0)
                 continue;
             if(t > 0 && t <= N && can_fill(i, j, t))
                 fill(i, j, t);
@@ -102,42 +99,47 @@ void read_sudoku()
     }
 }
 
-void test(int n_repeat){
-    vector <int> v;
+void test(int n_repeat)
+{
+    int cmp_func(const void *a, const void *b) {
+        return (*(int*)a - *(int*)b);
+    }
+
     int total = 100;
-    int tmp[N][N];
-    memcpy(tmp, sudoku, sizeof(tmp));
-    for (int i = 0; i < total; ++i){
+    int time_usage[total];
+    int sudoku_tmp[N][N];
+    memcpy(sudoku_tmp, sudoku, sizeof(sudoku_tmp));
+    for (int i = 0; i < total; ++i) {
         struct timeval start, end;
         gettimeofday(&start, NULL);
-        for (int j = 0; j < n_repeat; ++j){
-            memcpy(sudoku, tmp, sizeof(tmp));
+        for (int j = 0; j < n_repeat; ++j) {
+            memcpy(sudoku, sudoku_tmp, sizeof(sudoku_tmp));
             bt(0, 0);
         }
         gettimeofday(&end, NULL);
         int usec = (1e6) * (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec);
-        v.push_back(usec);
+        time_usage[i] = usec;
     }
-    sort(v.begin(), v.end());
-    
-    double total_time = 0;
-    for (int i = 20; i < v.size() - 20; ++i){
-        total_time += v[i];
-    }
+    qsort(time_usage, total, sizeof(time_usage[0]), cmp_func);
 
-    cout << total_time / (1e3 * n_repeat * v.size()-40) << endl;
+    double total_time = 0;
+    const int skip = total / 5;
+    for (int i = skip; i < total - skip; ++i)
+        total_time += time_usage[i];
+
+    printf("%f\n", total_time / (1e3 * n_repeat * (total- (2*skip))));
 }
 
 int main(int argc, const char **argv)
 {
     read_sudoku();
-    if(argc == 2){
+    if(argc == 2) {
         timing = true;
         test(atoi(argv[1]));
-    }else{
+    } else {
         print_sudoku();
         bt(0, 0);
     }
-    cout << ans_count << " answer(s) found." << endl;
+    printf("%d  answer(s) found.\n", ans_count);
     return 0;
 }
