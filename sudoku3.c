@@ -18,12 +18,12 @@ typedef struct _Sudoku {
     bool box[N][N+1];
 } Sudoku;
 
-bool timing;
+bool recording;
 int ans_count;
 
 void sudoku_print(Sudoku *thiz)
 {
-    if (timing)
+    if (recording)
         return;
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j)
@@ -130,7 +130,7 @@ void sudoku_solve(Sudoku *thiz)
     }
 }
 
-void test(Sudoku s, const int num_repeat)
+void record_time(Sudoku s, const int num_repeat)
 {
     int cmp_func(const void *a, const void *b) {
         return (*(int*)a - *(int*)b);
@@ -165,8 +165,8 @@ int main(int argc, const char **argv)
     Sudoku s = {0};
     sudoku_read(&s);
     if(argc == 2) {
-        timing = true;
-        test(s, atoi(argv[1]));
+        recording = true;
+        record_time(s, atoi(argv[1]));
     } else {
         sudoku_print(&s);
         sudoku_solve(&s);

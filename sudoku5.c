@@ -20,12 +20,12 @@ typedef struct _Sudoku {
     bool box[N][N+1];
 } Sudoku;
 
-bool timing;
+bool recording;
 int ans_count;
 
 void sudoku_print(Sudoku *thiz)
 {
-    if (timing)
+    if (recording)
         return;
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j)
@@ -122,20 +122,20 @@ void sudoku_read(Sudoku *thiz)
 
 bool sudoku_solve_row(Sudoku *thiz, int *num_filled, int *num_unsolved)
 {
-    FILL_IF_EXACTLY_ONE(FOR_N(r) FOR_EACH_NUM(n) if(!thiz->row[r][n]), FOR_N(c), 
+    FILL_IF_EXACTLY_ONE(FOR_N(r) FOR_EACH_NUM(n) if(!thiz->row[r][n]), FOR_N(c) if(!thiz->grid[r][c]), 
             r, t, n, c, NULL);
 }
 
 bool sudoku_solve_col(Sudoku *thiz, int *num_filled, int *num_unsolved)
 {
-    FILL_IF_EXACTLY_ONE(FOR_N(c) FOR_EACH_NUM(n) if(!thiz->col[c][n]), FOR_N(r), 
+    FILL_IF_EXACTLY_ONE(FOR_N(c) FOR_EACH_NUM(n) if(!thiz->col[c][n]), FOR_N(r) if(!thiz->grid[r][c]), 
             t, c, n, r, NULL);
 }
 
 bool sudoku_solve_box(Sudoku *thiz, int *num_filled, int *num_unsolved)
 {
     int t2 = 0;
-    FILL_IF_EXACTLY_ONE(FOR_N(i) FOR_EACH_NUM(n) if(!thiz->box[i][n]), FOR_R_C_IN_BOX(r, c, i), 
+    FILL_IF_EXACTLY_ONE(FOR_N(i) FOR_EACH_NUM(n) if(!thiz->box[i][n]), FOR_R_C_IN_BOX(r, c, i) if(!thiz->grid[r][c]), 
             t, t2, n, r, t2=c);
 }
 
@@ -183,7 +183,7 @@ void sudoku_solve(Sudoku *thiz)
     }
 }
 
-void test(Sudoku s, const int num_repeat)
+void record_time(Sudoku s, const int num_repeat)
 {
     int cmp_func(const void *a, const void *b) {
         return (*(int*)a - *(int*)b);
@@ -218,12 +218,11 @@ int main(int argc, const char **argv)
     Sudoku s = {0};
     sudoku_read(&s);
     if(argc == 2) {
-        timing = true;
-        test(s, atoi(argv[1]));
+        recording = true;
+        record_time(s, atoi(argv[1]));
     } else {
         sudoku_print(&s);
         sudoku_solve(&s);
-        sudoku_print(&s);
     }
     printf("%d  answer(s) found.\n", ans_count);
     return 0;

@@ -7,7 +7,7 @@
 
 #define N 9
 
-bool timing;
+bool recording;
 int ans_count;
 int sudoku[N][N];
 bool row[N][N+1];
@@ -18,7 +18,7 @@ void bt(int r, int c);
 
 void print_sudoku()
 {
-    if (timing)
+    if (recording)
         return;
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j)
@@ -99,7 +99,7 @@ void read_sudoku()
     }
 }
 
-void test(int n_repeat)
+void record_time(int n_repeat)
 {
     int cmp_func(const void *a, const void *b) {
         return (*(int*)a - *(int*)b);
@@ -134,8 +134,8 @@ int main(int argc, const char **argv)
 {
     read_sudoku();
     if(argc == 2) {
-        timing = true;
-        test(atoi(argv[1]));
+        recording = true;
+        record_time(atoi(argv[1]));
     } else {
         print_sudoku();
         bt(0, 0);

@@ -24,14 +24,14 @@ struct Cell {
     int r, c, n;
 };
 
-bool timing;
+bool recording;
 int ans_count;
 
 void sudoku_solve(Sudoku *thiz, bool record);
 
 void sudoku_print(Sudoku *thiz)
 {
-    if(timing)
+    if(recording)
         return;
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j)
@@ -155,7 +155,7 @@ int cmp_func(const void *a, const void *b)
     return (*(int*)a - *(int*)b);
 }
 
-void test(Sudoku s, const int n_repeat)
+void record_time(Sudoku s, const int n_repeat)
 {
     const int total = 100;
     int time_usage[total];
@@ -186,8 +186,8 @@ int main(int argc, const char **argv)
     Sudoku s = {0};
     sudoku_read(&s);
     if(argc == 2) {
-        timing = true;
-        test(s, atoi(argv[1]));
+        recording = true;
+        record_time(s, atoi(argv[1]));
     } else {
         sudoku_print(&s);
         sudoku_solve(&s);
