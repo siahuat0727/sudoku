@@ -93,57 +93,62 @@ void sudoku_read(Sudoku *thiz)
     }
 }
 
-
-#define FILL_IF_EXACTLY_ONE(LOOP1, LOOP2, arg1, arg2,       \
-        arg3, arg4, extra_stmt)                             \
-    do {                                                    \
-        LOOP1{                                              \
-            int num_can_fill = 0;                           \
-            int t;                                          \
-            LOOP2 {                                         \
-                if (sudoku_can_fill(thiz, r, c, n)) {       \
-                    num_can_fill++;                         \
-                    t = arg4;                               \
-                    extra_stmt;                             \
-                    if (num_can_fill > 1) /* pruning */     \
-                        break;                              \
-                }                                           \
-            }                                               \
-            if (num_can_fill == 0)                          \
-                return false;                               \
-            if (num_can_fill == 1) {                        \
-                sudoku_fill(thiz, arg1, arg2, arg3);        \
-                ++*num_filled;                              \
-            } else                                          \
-                ++*num_unsolved;                            \
-        }                                                   \
-        return true;                                        \
+#define FILL_IF_EXACTLY_ONE(LOOP1, LOOP2, arg1, arg2, \
+        arg3, arg4, count_unsolved, extra_stmt) \
+    do { \
+        LOOP1 { \
+            int num_can_fill = 0; \
+            int t; \
+            LOOP2 { \
+                if (sudoku_can_fill(thiz, r, c, n)) { \
+                    num_can_fill++; \
+                    t = arg4; \
+                    extra_stmt; \
+                    if (num_can_fill > 1) /* pruning */ \
+                        break; \
+                } \
+            } \
+            if (num_can_fill == 0) \
+                return false; \
+            if (num_can_fill == 1) { \
+                sudoku_fill(thiz, arg1, arg2, arg3); \
+                ++*num_filled; \
+            } else if (count_unsolved) \
+                ++*num_unsolved; \
+        } \
     } while (0) 
 
-bool sudoku_solve_row(Sudoku *thiz, int *num_filled, int *num_unsolved)
+bool sudoku_solve_row(Sudoku *thiz, int *num_filled, int *num_unsolved, bool count_unsolved)
 {
-    FILL_IF_EXACTLY_ONE(FOR_N(r) FOR_EACH_NUM(n) if(!thiz->row[r][n]), FOR_N(c) if(!thiz->grid[r][c]), 
-            r, t, n, c, NULL);
+    FILL_IF_EXACTLY_ONE(FOR_N(r) FOR_EACH_NUM(n) if(!thiz->row[r][n]), 
+            FOR_N(c) if(!thiz->grid[r][c]), 
+            r, t, n, c, count_unsolved, NULL);
+    return true;
 }
 
-bool sudoku_solve_col(Sudoku *thiz, int *num_filled, int *num_unsolved)
+bool sudoku_solve_col(Sudoku *thiz, int *num_filled, int *num_unsolved, bool count_unsolved)
 {
-    FILL_IF_EXACTLY_ONE(FOR_N(c) FOR_EACH_NUM(n) if(!thiz->col[c][n]), FOR_N(r) if(!thiz->grid[r][c]), 
-            t, c, n, r, NULL);
+    FILL_IF_EXACTLY_ONE(FOR_N(c) FOR_EACH_NUM(n) if(!thiz->col[c][n]), 
+            FOR_N(r) if(!thiz->grid[r][c]), 
+            t, c, n, r, count_unsolved, NULL);
+    return true;
 }
 
-bool sudoku_solve_box(Sudoku *thiz, int *num_filled, int *num_unsolved)
+bool sudoku_solve_box(Sudoku *thiz, int *num_filled, int *num_unsolved, bool count_unsolved)
 {
     int t2 = 0;
-    FILL_IF_EXACTLY_ONE(FOR_N(i) FOR_EACH_NUM(n) if(!thiz->box[i][n]), FOR_R_C_IN_BOX(r, c, i) if(!thiz->grid[r][c]), 
-            t, t2, n, r, t2=c);
+    FILL_IF_EXACTLY_ONE(FOR_N(i) FOR_EACH_NUM(n) if(!thiz->box[i][n]), 
+            FOR_R_C_IN_BOX(r, c, i) if(!thiz->grid[r][c]), 
+            t, t2, n, r, count_unsolved, t2=c);
+    return true;
 }
 
-bool sudoku_solve_cell(Sudoku *thiz, int *num_filled, int *num_unsolved)
+bool sudoku_solve_cell(Sudoku *thiz, int *num_filled, int *num_unsolved, bool count_unsolved)
 {
-    *num_unsolved = 0;
-    FILL_IF_EXACTLY_ONE(FOR_FOR_EACH_EMPTY_CELL(r, c, thiz), FOR_EACH_NUM(n), 
-            r, c, t, n, NULL);
+    FILL_IF_EXACTLY_ONE(FOR_FOR_EACH_EMPTY_CELL(r, c, thiz), 
+            FOR_EACH_NUM(n), 
+            r, c, t, n, count_unsolved, NULL);
+    return true;
 }
 
 void sudoku_solve(Sudoku *thiz)
@@ -153,10 +158,10 @@ void sudoku_solve(Sudoku *thiz)
         num_filled = 0;
         num_unsolved = 0;
 
-        if (!sudoku_solve_row(thiz, &num_filled, &num_unsolved) ||
-            !sudoku_solve_col(thiz, &num_filled, &num_unsolved) ||
-            !sudoku_solve_box(thiz, &num_filled, &num_unsolved) ||
-            !sudoku_solve_cell(thiz, &num_filled, &num_unsolved))
+        if (!sudoku_solve_row(thiz, &num_filled, &num_unsolved, false) ||
+            !sudoku_solve_col(thiz, &num_filled, &num_unsolved, false) ||
+            !sudoku_solve_box(thiz, &num_filled, &num_unsolved, false) ||
+            !sudoku_solve_cell(thiz, &num_filled, &num_unsolved, true))
             return;
 
     } while (num_filled != 0);
