@@ -141,12 +141,10 @@ void sudoku_solve(Sudoku *thiz, bool record=false)
 {
     stack<Cell> s;
     _sudoku_solve(thiz, &s, record);
-    if(record) {
-        while(!s.empty()) {
-            Cell cell = s.top();
-            sudoku_erase(thiz, cell.r, cell.c, cell.n);
-            s.pop();
-        }
+    while(!s.empty()) {
+        Cell cell = s.top();
+        sudoku_erase(thiz, cell.r, cell.c, cell.n);
+        s.pop();
     }
 }
 

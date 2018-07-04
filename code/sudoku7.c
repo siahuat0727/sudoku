@@ -18,6 +18,8 @@ typedef struct _Sudoku {
     bool row[N][N+1];
     bool col[N][N+1];
     bool box[N][N+1];
+    bool can_fill[N][N][N+1];
+    int num_can_fill_cell[N][N];
 } Sudoku;
 
 bool recording;
@@ -33,6 +35,20 @@ void sudoku_print(Sudoku *thiz)
         puts("");
     }
     puts("");
+}
+
+void sudoku_init(Sudoku *thiz)
+{
+    memset(thiz->grid, 0, sizeof(thiz->grid));
+    memset(thiz->row, 0, sizeof(thiz->row));
+    memset(thiz->col, 0, sizeof(thiz->col));
+    memset(thiz->box, 0, sizeof(thiz->box));
+    memset(thiz->can_fill, true, sizeof(thiz->can_fill));
+    FOR_N(i) {
+        FOR_N(j) {
+            thiz->num_can_fill_cell[i][j] = 9;
+        }
+    }
 }
 
 int get_r(int box_i)
@@ -52,17 +68,48 @@ int get_box(int r, int c)
 
 bool sudoku_can_fill(Sudoku *thiz, int r, int c, int n)
 {
+    return thiz->can_fill[r][c][n];
+}
+
+bool sudoku_can_fill_2(Sudoku *thiz, int r, int c, int n)
+{
     return !thiz->row[r][n] && !thiz->col[c][n] && !thiz->box[get_box(r,c)][n];
+}
+
+bool sudoku_maybe_update_can_fill(Sudoku *thiz, int r, int c, int n, bool filled)
+{
+    if (filled) {
+        if (thiz->can_fill[r][c][n] == true) {
+            thiz->can_fill[r][c][n] = false;
+            thiz->num_can_fill_cell[r][c]--;
+        }
+    } else {
+        if (thiz->can_fill[r][c][n] == false) {
+            if (sudoku_can_fill_2(thiz, r, c, n)) {
+                thiz->can_fill[r][c][n] = true;
+                thiz->num_can_fill_cell[r][c]++;
+            }
+        }
+    }
 }
 
 void _sudoku_fill(Sudoku *thiz, int r, int c, int n, bool b)
 {
-    // assert(thiz.row[r][n] != b && thiz.col[c][n] != b && thiz.box[get_box(r, c)][n] != b);
-    // assert(n > 0 && n <= N);
+    const int box_index = get_box(r, c);
     thiz->row[r][n] = b;
     thiz->col[c][n] = b;
-    thiz->box[get_box(r,c)][n] = b;
+    thiz->box[box_index][n] = b;
     thiz->grid[r][c] = b ? n : 0;
+
+    FOR_N(rr) {
+        sudoku_maybe_update_can_fill(thiz, rr, c, n, b);
+    }
+    FOR_N(cc) {
+        sudoku_maybe_update_can_fill(thiz, r, cc, n, b);
+    }
+    FOR_R_C_IN_BOX(rr, cc, box_index) {
+        sudoku_maybe_update_can_fill(thiz, rr, cc, n, b);
+    }
 }
 
 void sudoku_fill(Sudoku *thiz, int r, int c, int n)
@@ -152,13 +199,22 @@ bool sudoku_solve_box(Sudoku *thiz, int *num_filled, int *num_unsolved, bool cou
 
 bool sudoku_solve_cell(Sudoku *thiz, int *num_filled, int *num_unsolved, bool count_unsolved)
 {
-    int nn;
-    FILL_IF_EXACTLY_ONE(
-        FOR_FOR_EACH_EMPTY_CELL(r, c, thiz),
-        FOR_EACH_NUM(n),
-        nn = n,
-        sudoku_fill(thiz, r, c, nn)
-    );
+    FOR_FOR_EACH_EMPTY_CELL(r, c, thiz) {
+        if (thiz->num_can_fill_cell[r][c] == 1) {
+            FOR_EACH_NUM(n) {
+                if (sudoku_can_fill(thiz, r, c, n)) {
+                    sudoku_fill(thiz, r, c, n);
+                    ++*num_filled;
+                    break;
+                }
+            }
+        } else if (thiz->num_can_fill_cell[r][c] == 0) {
+            return false; // pruning
+        } else if (count_unsolved) {
+            ++*num_unsolved;
+        }
+    }
+    return true;
 }
 
 void sudoku_solve(Sudoku *thiz)
@@ -179,19 +235,25 @@ void sudoku_solve(Sudoku *thiz)
         ans_count++;
         sudoku_print(thiz);
     } else {
-        // find the first empty cell, try to fill and solve it
+        int Min = N;
+        int r_min = -1, c_min = -1;
+        // find the empty cell with fewest possible ans, try to fill and solve it
         FOR_FOR_EACH_EMPTY_CELL(r, c, thiz) {
-            FOR_EACH_NUM(n) {
-                if (sudoku_can_fill(thiz, r, c, n)) {
-                    // copy and solve
-                    Sudoku sudoku_tmp;
-                    memcpy(&sudoku_tmp, thiz, sizeof(Sudoku));
-
-                    sudoku_fill(&sudoku_tmp, r, c, n);
-                    sudoku_solve(&sudoku_tmp);
-                }
+            if (thiz->num_can_fill_cell[r][c] < Min) {
+                Min = thiz->num_can_fill_cell[r][c];
+                r_min = r;
+                c_min = c;
             }
-            return;
+        }
+        FOR_EACH_NUM(n) {
+            if (sudoku_can_fill(thiz, r_min, c_min, n)) {
+                // copy and solve
+                Sudoku sudoku_tmp;
+                memcpy(&sudoku_tmp, thiz, sizeof(Sudoku));
+
+                sudoku_fill(&sudoku_tmp, r_min, c_min, n);
+                sudoku_solve(&sudoku_tmp);
+            }
         }
     }
 }
@@ -228,7 +290,8 @@ void record_time(Sudoku s, const int num_repeat)
 
 int main(int argc, const char **argv)
 {
-    Sudoku s = {0};
+    Sudoku s;
+    sudoku_init(&s);
     sudoku_read(&s);
     if(argc == 2) {
         recording = true;

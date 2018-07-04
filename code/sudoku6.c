@@ -10,6 +10,8 @@
 #define FOR_N(i) for (int i = 0; i < N; ++i)
 #define FOR_FOR_EACH_EMPTY_CELL(r, c, s) FOR_N(r) FOR_N(c) if(s->grid[r][c] == 0)
 #define FOR_EACH_NUM(n) for (int n = 1; n <= N; ++n)
+#define FOR_3(k, start) for (int kk = start, k = kk; k < kk+3; ++k)
+#define FOR_R_C_IN_BOX(r, c, i) FOR_3(r, get_r(i)) FOR_3(c, get_c(i))
 
 typedef struct _Sudoku {
     int grid[N][N];
@@ -33,6 +35,16 @@ void sudoku_print(Sudoku *thiz)
     puts("");
 }
 
+int get_r(int box_i)
+{
+    return box_i/3*3;
+}
+
+int get_c(int box_i)
+{
+    return (box_i%3)*3;
+}
+
 int get_box(int r, int c)
 {
     return r/3*3 + c/3;
@@ -45,7 +57,7 @@ bool sudoku_can_fill(Sudoku *thiz, int r, int c, int n)
 
 void _sudoku_fill(Sudoku *thiz, int r, int c, int n, bool b)
 {
-    // assert(thiz.row[r][n] != b && thiz.col[c][n] != b && thiz.box[get_box(r, c)][n] != b);
+    // assert(thiz->row[r][n] != b && thiz->col[c][n] != b && thiz->box[get_box(r, c)][n] != b);
     // assert(n > 0 && n <= N);
     thiz->row[r][n] = b;
     thiz->col[c][n] = b;
@@ -81,49 +93,117 @@ void sudoku_read(Sudoku *thiz)
     }
 }
 
+#define FILL_IF_EXACTLY_ONE(LOOP1, LOOP2, save_tmp, sudoku_fill_stmt) \
+    do { \
+        LOOP1 { \
+            int num_can_fill = 0; \
+            int t; \
+            LOOP2 { \
+                if (sudoku_can_fill(thiz, r, c, n)) { \
+                    num_can_fill++; \
+                    save_tmp; \
+                    if (num_can_fill > 1) /* pruning */ \
+                        break; \
+                } \
+            } \
+            if (num_can_fill == 0) \
+                return false; \
+            if (num_can_fill == 1) { \
+                sudoku_fill_stmt; \
+                ++*num_filled; \
+            } else if (count_unsolved) \
+                ++*num_unsolved; \
+        } \
+        return true; \
+    } while (0)
+
+bool sudoku_solve_row(Sudoku *thiz, int *num_filled, int *num_unsolved, bool count_unsolved)
+{
+    int cc;
+    FILL_IF_EXACTLY_ONE(
+        FOR_N(r) FOR_EACH_NUM(n) if(!thiz->row[r][n]),
+        FOR_N(c) if(!thiz->grid[r][c]),
+        cc = c,
+        sudoku_fill(thiz, r, cc, n)
+    );
+}
+
+bool sudoku_solve_col(Sudoku *thiz, int *num_filled, int *num_unsolved, bool count_unsolved)
+{
+    int rr;
+    FILL_IF_EXACTLY_ONE(
+        FOR_N(c) FOR_EACH_NUM(n) if(!thiz->col[c][n]),
+        FOR_N(r) if(!thiz->grid[r][c]),
+        rr = r,
+        sudoku_fill(thiz, rr, c, n)
+    );
+}
+
+bool sudoku_solve_box(Sudoku *thiz, int *num_filled, int *num_unsolved, bool count_unsolved)
+{
+    int rr, cc;
+    FILL_IF_EXACTLY_ONE(
+        FOR_N(i) FOR_EACH_NUM(n) if(!thiz->box[i][n]),
+        FOR_R_C_IN_BOX(r, c, i) if(!thiz->grid[r][c]),
+        rr = r; cc = c,
+        sudoku_fill(thiz, rr, cc, n)
+    );
+}
+
+bool sudoku_solve_cell(Sudoku *thiz, int *num_filled, int *num_unsolved, bool count_unsolved)
+{
+    int nn;
+    FILL_IF_EXACTLY_ONE(
+        FOR_FOR_EACH_EMPTY_CELL(r, c, thiz),
+        FOR_EACH_NUM(n),
+        nn = n,
+        sudoku_fill(thiz, r, c, nn)
+    );
+}
+
 void sudoku_solve(Sudoku *thiz)
 {
     int num_filled, num_unsolved;
     do {
         num_filled = 0;
         num_unsolved = 0;
-        FOR_FOR_EACH_EMPTY_CELL(r, c, thiz) {
-            int num_can_fill = 0;
-            int nn;
-            FOR_EACH_NUM(n) {
-                if(sudoku_can_fill(thiz, r, c, n)) {
-                    num_can_fill++;
-                    nn = n;
-                    if (num_can_fill > 1) // pruning
-                        break;
-                }
-            }
-            if (num_can_fill == 0)
-                return;
-            if (num_can_fill == 1) {
-                sudoku_fill(thiz, r, c, nn);
-                num_filled++;
-            } else
-                num_unsolved++;
-        }
+
+        if (!sudoku_solve_row(thiz, &num_filled, &num_unsolved, false) ||
+            !sudoku_solve_col(thiz, &num_filled, &num_unsolved, false) ||
+            !sudoku_solve_box(thiz, &num_filled, &num_unsolved, false) ||
+            !sudoku_solve_cell(thiz, &num_filled, &num_unsolved, true))
+            return;
+
     } while (num_filled != 0);
     if (num_unsolved == 0) {
         ans_count++;
         sudoku_print(thiz);
     } else {
-        // find the first empty cell, try to fill and solve it
+        int Min = N;
+        int r_min = -1, c_min = -1;
+        // find the empty cell with fewest possible ans, try to fill and solve it
         FOR_FOR_EACH_EMPTY_CELL(r, c, thiz) {
+            int num_can_fill = 0;
             FOR_EACH_NUM(n) {
                 if (sudoku_can_fill(thiz, r, c, n)) {
+                    ++num_can_fill;
+                }
+            }
+            if (num_can_fill < Min) {
+                Min = num_can_fill;
+                r_min = r;
+                c_min = c;
+            }
+        }
+        FOR_EACH_NUM(n) {
+            if (sudoku_can_fill(thiz, r_min, c_min, n)) {
                     // copy and solve
                     Sudoku sudoku_tmp;
                     memcpy(&sudoku_tmp, thiz, sizeof(Sudoku));
 
-                    sudoku_fill(&sudoku_tmp, r, c, n);
+                    sudoku_fill(&sudoku_tmp, r_min, c_min, n);
                     sudoku_solve(&sudoku_tmp);
-                }
             }
-            return;
         }
     }
 }
